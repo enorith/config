@@ -17,7 +17,6 @@ type FooConfig struct {
 
 func main() {
     var c FooConfig
-	config.Unmarshal("config.yml", &c)
-    
+    config.Unmarshal("config.yml", &c)
 }
 ```
