@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"reflect"
+	"strconv"
 
 	env "github.com/enorith/environment"
 	"github.com/enorith/supports/reflection"
@@ -116,9 +117,15 @@ func decodeEnvStruct(t reflect.Type, v reflect.Value) {
 		fv := v.Field(i)
 		if ft.Kind() == reflect.Struct {
 			decodeEnvStruct(ft, fv)
+		} else if ft.Kind() == reflect.Map {
+			//
 		} else {
 			if key := sf.Tag.Get("env"); key != "" {
 				decodeEnv(ft, fv, key, true) // use env fisrt
+			}
+
+			if def := sf.Tag.Get("default"); def != "" {
+				applyDefault(ft, fv, def)
 			}
 		}
 	}
@@ -129,6 +136,7 @@ func decodeEnv(ft reflect.Type, fv reflect.Value, key string, prioritize bool) {
 		// return if env not set
 		return
 	}
+
 	if fv.IsZero() || prioritize {
 		switch ft.Kind() {
 		case reflect.String:
@@ -142,4 +150,22 @@ func decodeEnv(ft reflect.Type, fv reflect.Value, key string, prioritize bool) {
 		}
 	}
 
+}
+
+func applyDefault(ft reflect.Type, fv reflect.Value, def string) {
+	if fv.IsZero() {
+		switch ft.Kind() {
+		case reflect.String:
+			fv.SetString(def)
+		case reflect.Int, reflect.Int32, reflect.Int64:
+			i, _ := strconv.ParseInt(def, 10, 64)
+			fv.SetInt(i)
+		case reflect.Bool:
+			b, _ := strconv.ParseBool(def)
+			fv.SetBool(b)
+		case reflect.Float32, reflect.Float64:
+			f, _ := strconv.ParseFloat(def, 64)
+			fv.SetFloat(f)
+		}
+	}
 }
