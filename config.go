@@ -1,11 +1,13 @@
 package config
 
 import (
+	"io/fs"
+	"io/ioutil"
+	"reflect"
+
 	env "github.com/enorith/environment"
 	"github.com/enorith/supports/reflection"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"reflect"
 )
 
 type Config interface {
@@ -81,20 +83,33 @@ func Unmarshal(file string, out interface{}) error {
 		return err
 	}
 
-	if err = yaml.Unmarshal(data, out); err != nil {
+	return UnmarshalBytes(data, out)
+}
+
+func UnmarshalFS(fsys fs.FS, filename string, out interface{}) error {
+	data, err := fs.ReadFile(fsys, filename)
+	if err != nil {
+		return err
+	}
+	return UnmarshalBytes(data, out)
+}
+
+func UnmarshalBytes(data []byte, out interface{}) error {
+
+	if err := yaml.Unmarshal(data, out); err != nil {
 		return err
 	}
 
 	UnmarshalEnv(out)
-	return err
+	return nil
 }
 
-func UnmarshalEnv(config interface{})  {
+func UnmarshalEnv(config interface{}) {
 	v := reflection.StructValue(config)
 	t := reflection.StructType(config)
 	decodeEnvStruct(t, v)
 }
-func decodeEnvStruct(t reflect.Type, v reflect.Value)  {
+func decodeEnvStruct(t reflect.Type, v reflect.Value) {
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		ft := sf.Type
@@ -102,33 +117,29 @@ func decodeEnvStruct(t reflect.Type, v reflect.Value)  {
 		if ft.Kind() == reflect.Struct {
 			decodeEnvStruct(ft, fv)
 		} else {
-			if key := sf.Tag.Get("env") ; key != "" {
-				decodeEnv(ft, fv, key)
+			if key := sf.Tag.Get("env"); key != "" {
+				decodeEnv(ft, fv, key, true) // use env fisrt
 			}
 		}
 	}
 }
 
-func decodeEnv(ft reflect.Type, fv reflect.Value, key string) {
-	switch ft.Kind() {
-	case reflect.String:
-		if fv.IsZero() {
-			fv.SetString(env.GetString(key))
-		}
-	case reflect.Int:
-		fallthrough
-	case reflect.Int32:
-		fallthrough
-	case reflect.Int64:
-		if fv.IsZero() {
-			fv.SetInt(env.GetInt64(key))
-		}
-	case reflect.Bool:
-		fv.SetBool(env.GetBoolean(key))
-	case reflect.Float32:
-		fallthrough
-	case reflect.Float64:
-		fv.SetFloat(env.GetFloat64(key))
+func decodeEnv(ft reflect.Type, fv reflect.Value, key string, prioritize bool) {
+	if env.GetString(key) == "" {
+		// return if env not set
+		return
 	}
-}
+	if fv.IsZero() || prioritize {
+		switch ft.Kind() {
+		case reflect.String:
+			fv.SetString(env.GetString(key))
+		case reflect.Int, reflect.Int32, reflect.Int64:
+			fv.SetInt(env.GetInt64(key))
+		case reflect.Bool:
+			fv.SetBool(env.GetBoolean(key))
+		case reflect.Float32, reflect.Float64:
+			fv.SetFloat(env.GetFloat64(key))
+		}
+	}
 
+}
