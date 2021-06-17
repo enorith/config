@@ -108,7 +108,9 @@ func UnmarshalBytes(data []byte, out interface{}) error {
 func UnmarshalEnv(config interface{}) {
 	v := reflection.StructValue(config)
 	t := reflection.StructType(config)
-	decodeEnvStruct(t, v)
+	if t.Kind() == reflect.Struct {
+		decodeEnvStruct(t, v)
+	}
 }
 func decodeEnvStruct(t reflect.Type, v reflect.Value) {
 	for i := 0; i < t.NumField(); i++ {
