@@ -100,6 +100,10 @@ func decodeEnv(ft reflect.Type, fv reflect.Value, key string, prioritize bool) {
 			fv.SetBool(env.GetBoolean(key))
 		case reflect.Float32, reflect.Float64:
 			fv.SetFloat(env.GetFloat64(key))
+		case reflect.Slice:
+			if ft.Elem().Kind() == reflect.Uint8 {
+				fv.SetBytes([]byte(env.GetString(key)))
+			}
 		}
 	}
 
