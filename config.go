@@ -8,7 +8,7 @@ import (
 
 	env "github.com/enorith/environment"
 	"github.com/enorith/supports/reflection"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var EnvPrefix = ""
@@ -34,6 +34,16 @@ func UnmarshalFS(fsys fs.FS, filename string, out interface{}) error {
 func UnmarshalBytes(data []byte, out interface{}) error {
 
 	if err := yaml.Unmarshal(data, out); err != nil {
+		return err
+	}
+
+	UnmarshalEnv(out)
+	return nil
+}
+
+func UnmarshalNode(node yaml.Node, out interface{}) error {
+
+	if err := (&node).Decode(out); err != nil {
 		return err
 	}
 
